@@ -53,7 +53,7 @@ public class UserDetail extends JPanel {
 
             int row = 0;
             while (result.next()) {
-                data[row][0] = result.getString("user_id");
+                data[row][0] = result.getString("tourist_id");
                 data[row][1] = result.getString("username");
                 data[row][2] = result.getString("password");
                 data[row][3] = result.getString("email");

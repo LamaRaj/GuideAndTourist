@@ -7,6 +7,8 @@ import java.awt.event.ActionListener;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class TouristSignup extends JFrame implements ActionListener {
     private JTextField nameField;
@@ -14,14 +16,14 @@ public class TouristSignup extends JFrame implements ActionListener {
     private JPasswordField passwordField;
     private JTextField emailField;
     private JTextField contactField;
+    private JTextField ageField;
     private JButton signupButton;
     private JButton backButton;
     private JLabel statusLabel;
 
     public TouristSignup() {
-        // Setting up the JFrame
         setTitle("Tourist Signup");
-        setSize(300, 350);
+        setSize(300, 400);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
@@ -31,20 +33,19 @@ public class TouristSignup extends JFrame implements ActionListener {
         passwordField = new JPasswordField(15);
         emailField = new JTextField(15);
         contactField = new JTextField(15);
+        ageField = new JTextField(15);
         signupButton = new JButton("Signup");
         backButton = new JButton("Back");
         statusLabel = new JLabel();
 
-        // Adding action listeners to the buttons
         signupButton.addActionListener(this);
         backButton.addActionListener(e -> {
             new Login().setVisible(true);
-            dispose(); // Close the signup window
+            dispose();
         });
 
-        // Setting up the panel and adding components
         JPanel panel = new JPanel();
-        panel.setLayout(new GridLayout(7, 2));
+        panel.setLayout(new GridLayout(8, 2));
         panel.add(new JLabel("Name:"));
         panel.add(nameField);
         panel.add(new JLabel("Username:"));
@@ -55,8 +56,10 @@ public class TouristSignup extends JFrame implements ActionListener {
         panel.add(emailField);
         panel.add(new JLabel("Contact:"));
         panel.add(contactField);
-        panel.add(backButton); // Added Back button on the left side
-        panel.add(signupButton); // Signup button on the right side
+        panel.add(new JLabel("Age:"));
+        panel.add(ageField);
+        panel.add(backButton);
+        panel.add(signupButton);
         panel.add(statusLabel);
 
         add(panel);
@@ -64,23 +67,38 @@ public class TouristSignup extends JFrame implements ActionListener {
 
     @Override
     public void actionPerformed(ActionEvent e) {
+        String email = emailField.getText();
+        String contact = contactField.getText();
+
+        if (!isValidEmail(email)) {
+            statusLabel.setText("Invalid email format.");
+            statusLabel.setForeground(Color.RED);
+            return;
+        }
+
+        if (!isValidContact(contact)) {
+            statusLabel.setText("Invalid contact number.");
+            statusLabel.setForeground(Color.RED);
+            return;
+        }
+
         try {
-            // SQL query to insert a new tourist record
-            String sql = "INSERT INTO tourist_info (name, username, password, email, contact) VALUES (?, ?, ?, ?, ?)";
+            String sql = "INSERT INTO tourist_info (name, username, password, email, contact, age) VALUES (?, ?, ?, ?, ?, ?)";
             Class.forName("com.mysql.cj.jdbc.Driver");
             Connection con = DriverManager.getConnection("jdbc:mysql://localhost:3307/project", "root", "root");
             PreparedStatement stm = con.prepareStatement(sql);
             stm.setString(1, nameField.getText());
             stm.setString(2, usernameField.getText());
             stm.setString(3, new String(passwordField.getPassword()));
-            stm.setString(4, emailField.getText());
-            stm.setString(5, contactField.getText());
+            stm.setString(4, email);
+            stm.setString(5, contact);
+            stm.setInt(6, Integer.parseInt(ageField.getText()));
 
             int rowsInserted = stm.executeUpdate();
             if (rowsInserted > 0) {
                 JOptionPane.showMessageDialog(this, "Signup successful!");
                 new Login().setVisible(true);
-                dispose(); // Close the signup window
+                dispose();
             } else {
                 statusLabel.setText("Signup failed. Please try again.");
                 statusLabel.setForeground(Color.RED);
@@ -92,6 +110,22 @@ public class TouristSignup extends JFrame implements ActionListener {
             statusLabel.setText("Error during signup. Please try again.");
             statusLabel.setForeground(Color.RED);
         }
+    }
+
+    private boolean isValidEmail(String email) {
+        // Simple email validation regex
+        String emailRegex = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$";
+        Pattern emailPattern = Pattern.compile(emailRegex);
+        Matcher matcher = emailPattern.matcher(email);
+        return matcher.matches();
+    }
+
+    private boolean isValidContact(String contact) {
+        // Regex to validate that the contact number starts with 98 or 97 and is 10 digits long
+        String contactRegex = "^(98|97)\\d{8}$";
+        Pattern contactPattern = Pattern.compile(contactRegex);
+        Matcher matcher = contactPattern.matcher(contact);
+        return matcher.matches();
     }
 
     public static void main(String[] args) {

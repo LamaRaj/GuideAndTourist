@@ -18,11 +18,11 @@ public class Login extends JFrame implements ActionListener {
     private JButton touristLoginButton;
     private JButton guideLoginButton;
 
-    private boolean isTouristLogin = false; // Flag to keep track of current login mode
+    private boolean isTouristLogin = true; // Default to tourist login
 
     public Login() {
         // Setting up the JFrame
-        setTitle("Login");
+        setTitle("Tourist Login");
         setSize(300, 250); // Increased height to accommodate new buttons
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -69,6 +69,9 @@ public class Login extends JFrame implements ActionListener {
 
         add(topPanel, BorderLayout.NORTH);
         add(mainPanel, BorderLayout.CENTER);
+
+        // Set the initial state
+        switchToTouristLogin();
     }
 
     private void switchToTouristLogin() {
@@ -98,7 +101,7 @@ public class Login extends JFrame implements ActionListener {
         try {
             String sql;
             if (isTouristLogin) {
-                sql = "SELECT * FROM tourist_info WHERE username=? AND password=?";
+                sql = "SELECT tourist_id, username, name, email FROM tourist_info WHERE username=? AND password=?";
             } else {
                 sql = "SELECT guide_id FROM guide_info WHERE username=? AND password=?";
             }
@@ -113,7 +116,11 @@ public class Login extends JFrame implements ActionListener {
             if (result.next()) {
                 // Login successful, redirect to the appropriate dashboard or another page
                 if (isTouristLogin) {
-                    new TouristHome().setVisible(true);
+                    int userId = result.getInt("tourist_id");
+                    String username = result.getString("username");
+                    String name = result.getString("name");
+                    String email = result.getString("email");
+                    new TouristHome(userId, username, name, email).setVisible(true);
                 } else {
                     int guideId = result.getInt("guide_id");
                     new GuideHome(guideId).setVisible(true);
@@ -131,6 +138,8 @@ public class Login extends JFrame implements ActionListener {
             JOptionPane.showMessageDialog(this, "Error during login. Please try again.");
         }
     }
+    
+    
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new Login().setVisible(true));

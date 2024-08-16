@@ -12,7 +12,6 @@ import javax.swing.JTabbedPane;
 import javax.swing.border.Border;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
-import javax.swing.SwingConstants;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -46,14 +45,13 @@ public class GuideHome extends JFrame implements ActionListener {
         homePanel.add(createStatsPanel(), BorderLayout.CENTER);
         tabbedPane.addTab("Home", homePanel);
 
-        // Other tabs can be added here
-        JPanel guideSearchPanel = new JPanel();
-        guideSearchPanel.add(new JLabel("Guide Search Panel"));
-        tabbedPane.addTab("Guide Search", guideSearchPanel);
-        
-        JPanel destinationsPanel = new JPanel();
-        destinationsPanel.add(new JLabel("Destinations Panel"));
-        tabbedPane.addTab("Destinations", destinationsPanel);
+        // GuideMessage tab
+        JPanel guideMessagePanel = new GuideMessage(guideId, null); // Pass TouristMessage if required
+        tabbedPane.addTab("Messages", guideMessagePanel);
+
+        // History tab
+        JPanel guideHistoryPanel = new GuideHistory(guideId);
+        tabbedPane.addTab("History", guideHistoryPanel);
 
         // Logout button
         JPanel bottomPanel = new JPanel(new BorderLayout());
@@ -66,9 +64,8 @@ public class GuideHome extends JFrame implements ActionListener {
         mainPanel.add(bottomPanel, BorderLayout.SOUTH);
 
         setContentPane(mainPanel);
-
         setVisible(true);
-        
+
         loadData();
     }
 

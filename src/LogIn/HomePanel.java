@@ -55,7 +55,7 @@ public class HomePanel extends JPanel {
         try {
             String guideCountQuery = "SELECT COUNT(*) FROM guide_info";
             String userCountQuery = "SELECT COUNT(*) FROM tourist_info";
-            String tourCountQuery = "SELECT COUNT(*) FROM guide_previous_detail";
+            String tourCountQuery = "SELECT COUNT(*) FROM bookings WHERE status='Completed'";
 
             Class.forName("com.mysql.cj.jdbc.Driver");
             Connection con = DriverManager.getConnection("jdbc:mysql://localhost:3307/project", "root", "root");

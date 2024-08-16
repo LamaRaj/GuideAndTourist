@@ -1,9 +1,8 @@
 package GuidePack;
 
-import java.awt.BorderLayout;
-import java.awt.Component;
-import java.awt.Dimension;
-import java.awt.GridLayout;
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.sql.Connection;
@@ -12,161 +11,235 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
-import javax.swing.JButton;
-import javax.swing.JCheckBox;
-import javax.swing.JComboBox;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.border.LineBorder;
-import javax.swing.border.TitledBorder;
 
-public class GuideSearch extends JPanel implements ActionListener {
+public class GuideSearch extends JPanel {
+    private JPanel guidePanel;
+    private JCheckBox[] filterCheckBoxes;
+    private JComboBox<String> sortComboBox;
+    private List<GuideDetails> guideDetailsList = new ArrayList<>();
+    private Destination.DestinationDetails destinationDetails;
+    private int touristId;
+    private String touristName;
+    
+    private TouristHistory touristHistory;
+    private TouristMessage touristMessage;
 
-    private static final String[] CRITERIA = { "Number of Tours", "Number of Tourists", "Ratings", "Availability" };
-    private static final String[] SORT_OPTIONS = { "High to Low", "Low to High" };
+    public GuideSearch(Destination.DestinationDetails destinationDetails,int touristId, String touristName, TouristHistory touristHistory, TouristMessage touristMessage) {
+        this.destinationDetails = destinationDetails;
+        this.touristName = touristName;
+        this.touristHistory = touristHistory;
+        this.touristMessage = touristMessage;
+        this.touristId=touristId;
 
-    private List<JCheckBox> checkBoxes = new ArrayList<>();
-    private JComboBox<String> sortDropdown = new JComboBox<>(SORT_OPTIONS);
-    private JButton findButton = new JButton("Find");
-    private JPanel resultPanel = new JPanel();
-    private TitledBorder resultPanelBorder = new TitledBorder(new LineBorder(java.awt.Color.BLACK), "Search Results");
-
-    public GuideSearch() {
         setLayout(new BorderLayout());
 
-        JPanel inputPanel = new JPanel();
-        for (String criterion : CRITERIA) {
-            JCheckBox checkBox = new JCheckBox(criterion);
-            checkBoxes.add(checkBox);
-            inputPanel.add(checkBox);
+        // Create filter panel with checkboxes
+        JPanel filterPanel = new JPanel();
+        filterPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        filterPanel.setLayout(new GridLayout(0, 1));
+
+        String[] attributes = {"Number of Tours", "Ratings", "Number of Tourists"};
+        filterCheckBoxes = new JCheckBox[attributes.length];
+        for (int i = 0; i < attributes.length; i++) {
+            filterCheckBoxes[i] = new JCheckBox(attributes[i]);
+            filterPanel.add(filterCheckBoxes[i]);
         }
 
-        inputPanel.add(new JLabel("Sort By:"));
-        inputPanel.add(sortDropdown);
-        inputPanel.add(findButton);
+        // Create sorting panel with dropdown
+        JPanel sortPanel = new JPanel();
+        sortPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        sortPanel.setLayout(new FlowLayout());
 
-        add(inputPanel, BorderLayout.NORTH);
+        sortComboBox = new JComboBox<>(new String[]{"Sort by", "High to Low", "Low to High"});
+        sortPanel.add(sortComboBox);
 
-        resultPanel.setLayout(new BorderLayout());
-        resultPanel.setBorder(resultPanelBorder);
-        JScrollPane scrollPane = new JScrollPane(resultPanel);
-        add(scrollPane, BorderLayout.CENTER);
+        // Create search panel
+        JPanel searchPanel = new JPanel();
+        searchPanel.setLayout(new BorderLayout());
+        searchPanel.add(filterPanel, BorderLayout.WEST);
+        searchPanel.add(sortPanel, BorderLayout.EAST);
 
-        findButton.addActionListener(this);
-    }
+        add(searchPanel, BorderLayout.NORTH);
 
-    public static void main(String[] args) {
-        javax.swing.SwingUtilities.invokeLater(() -> {
-            javax.swing.JFrame frame = new javax.swing.JFrame("Guide Search");
-            frame.setDefaultCloseOperation(javax.swing.JFrame.EXIT_ON_CLOSE);
-            frame.add(new GuideSearch());
-            frame.pack();
-            frame.setVisible(true);
-        });
-    }
+        // Create guide panel to hold guide details and buttons
+        guidePanel = new JPanel();
+        guidePanel.setLayout(new GridLayout(0, 1)); // Adjust the grid layout to hold multiple rows
 
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        try {
-            List<String> selectedCriteria = getSelectedCriteria();
-            String sortOrder = (String) sortDropdown.getSelectedItem();
-            if (selectedCriteria.isEmpty() || sortOrder == null) {
-                return;
+        add(new JScrollPane(guidePanel), BorderLayout.CENTER);
+
+        // Add action listeners for filters and sorting
+        ActionListener updateListener = new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                fetchGuides();
             }
-            String sql = getSQLQuery(selectedCriteria, sortOrder);
+        };
+
+        for (JCheckBox checkBox : filterCheckBoxes) {
+            checkBox.addActionListener(updateListener);
+        }
+        sortComboBox.addActionListener(updateListener);
+
+        // Fetch all guides initially
+        fetchGuides();
+    }
+
+    private void fetchGuides() {
+        try {
             Class.forName("com.mysql.cj.jdbc.Driver");
             Connection con = DriverManager.getConnection("jdbc:mysql://localhost:3307/project", "root", "root");
-            PreparedStatement stm = con.prepareStatement(sql);
+
+            // Build query with filters and sorting
+            StringBuilder sql = new StringBuilder("SELECT g.guide_id, g.name, g.username, g.email, p.no_of_tours, p.ratings, p.no_of_tourist FROM guide_info g LEFT JOIN guide_previous_detail p ON g.guide_id = p.guide_id");
+
+            List<String> filters = new ArrayList<>();
+            for (int i = 0; i < filterCheckBoxes.length; i++) {
+                if (filterCheckBoxes[i].isSelected()) {
+                    switch (i) {
+                        case 0:
+                            filters.add("p.no_of_tours IS NOT NULL");
+                            break;
+                        case 1:
+                            filters.add("p.ratings IS NOT NULL");
+                            break;
+                        case 2:
+                            filters.add("p.no_of_tourist IS NOT NULL");
+                            break;
+                    }
+                }
+            }
+
+            if (!filters.isEmpty()) {
+                sql.append(" WHERE ").append(String.join(" OR ", filters));
+            }
+
+            // Sorting
+            String sortOption = (String) sortComboBox.getSelectedItem();
+            if ("High to Low".equals(sortOption)) {
+                sql.append(" ORDER BY p.ratings DESC");
+            } else if ("Low to High".equals(sortOption)) {
+                sql.append(" ORDER BY p.ratings ASC");
+            } else {
+                sql.append(" ORDER BY g.name ASC"); // Default sorting
+            }
+
+            PreparedStatement stm = con.prepareStatement(sql.toString());
             ResultSet result = stm.executeQuery();
 
-            List<Object[]> resultsList = new ArrayList<>();
+            // Clear the existing panel
+            guidePanel.removeAll();
+
+            // Clear guide details list
+            guideDetailsList.clear();
+
             while (result.next()) {
-                resultsList.add(new Object[]{
-                        result.getString("name"),
-                        result.getString("contact_info"),
-                        result.getInt("age"),
-                        result.getString("address"),
-                        result.getString("email"),
-                        result.getInt("no_of_tours"),
-                        result.getBigDecimal("ratings"),
-                        result.getInt("no_of_tourist")
-                });
-            }
+                int guideId = result.getInt("guide_id");
+                 String guideName = result.getString("name");
+                String guideUsername = result.getString("username");
+                String guideEmail = result.getString("email");
+                int noOfTours = result.getInt("no_of_tours");
+                double ratings = result.getDouble("ratings");
+                int noOfTourist = result.getInt("no_of_tourist");
 
-            resultPanel.removeAll();
-            resultPanel.setLayout(new BorderLayout());
-            JPanel resultsGrid = new JPanel();
-            resultsGrid.setLayout(new GridLayout(0, 1, 5, 5));
+                GuideDetails details = new GuideDetails(guideId, guideUsername, guideName, guideEmail, noOfTours, ratings, noOfTourist);
+                guideDetailsList.add(details);
 
-            for (Object[] rowData : resultsList) {
-                JPanel resultBox = new JPanel();
-                resultBox.setLayout(new BorderLayout());
-                resultBox.setBorder(new LineBorder(java.awt.Color.BLACK));
-                resultBox.setPreferredSize(new Dimension(150, 100));
-
-                String content = String.format("<html>Name: %s<br>Contact: %s<br>Age: %d<br>Address: %s<br>Email: %s<br>Number of Tours: %d<br>Ratings: %s<br>Number of Tourists: %d</html>",
-                        rowData[0], rowData[1], rowData[2], rowData[3], rowData[4], rowData[5], rowData[6], rowData[7]);
-
-                JLabel label = new JLabel(content);
-                resultBox.add(label, BorderLayout.CENTER);
-
+                // Create a panel for each guide detail
+                JPanel detailPanel = new JPanel(new BorderLayout());
+                JLabel nameLabel = new JLabel("Name: " + guideName);
+                JLabel emailLabel = new JLabel("Email: " + guideEmail);
+                JLabel noOfToursLabel = new JLabel("Number of Tours: " + noOfTours);
+                JLabel ratingsLabel = new JLabel("Ratings: " + ratings);
+                JLabel noOfTouristLabel = new JLabel("Number of Tourists: " + noOfTourist);
                 JButton bookButton = new JButton("Book");
-                bookButton.setPreferredSize(new Dimension(70, 30));
-                resultBox.add(bookButton, BorderLayout.EAST);
 
-                resultsGrid.add(resultBox);
+                // Add action listener for book button
+                bookButton.addActionListener(new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        bookGuide(details);
+                    }
+                });
+
+                JPanel infoPanel = new JPanel(new GridLayout(5, 1)); // Panel for guide info
+                infoPanel.add(nameLabel);
+                infoPanel.add(emailLabel);
+                infoPanel.add(noOfToursLabel);
+                infoPanel.add(ratingsLabel);
+                infoPanel.add(noOfTouristLabel);
+
+                detailPanel.add(infoPanel, BorderLayout.CENTER);
+                detailPanel.add(bookButton, BorderLayout.SOUTH);
+                guidePanel.add(detailPanel);
             }
 
-            resultPanel.add(resultsGrid, BorderLayout.CENTER);
-            resultPanel.revalidate();
-            resultPanel.repaint();
+            // Revalidate and repaint to update the UI
+            guidePanel.revalidate();
+            guidePanel.repaint();
 
-        } catch (Exception ex) {
-            ex.printStackTrace();
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error fetching guides: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    private void bookGuide(GuideDetails guideDetails) {
+        // Retrieve the guide's name from the GuideDetails object
+        String guideName = guideDetails.getGuideName(); // Ensure getGuideName() method exists in GuideDetails
+
+        // Create an instance of BookingConfirmationPanel
+        BookingConfirmationPanel bookingPanel = new BookingConfirmationPanel(touristId, guideDetails, destinationDetails, guideName);
+        
+        // Get the parent frame and cast to TouristHome
+        if (SwingUtilities.getWindowAncestor(this) instanceof TouristHome) {
+            TouristHome touristHome = (TouristHome) SwingUtilities.getWindowAncestor(this);
+
+            // Add BookingConfirmationPanel to the tabbed pane
+            JTabbedPane tabbedPane = touristHome.getTabbedPane();
+            if (tabbedPane != null) {
+                tabbedPane.addTab("Booking Confirmation", bookingPanel);
+                tabbedPane.setSelectedComponent(bookingPanel);
+            } else {
+                JOptionPane.showMessageDialog(this, "Error: Tabbed pane not found.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } else {
+            JOptionPane.showMessageDialog(this, "Error: Cannot find the parent TouristHome frame.", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    private List<String> getSelectedCriteria() {
-        List<String> selectedCriteria = new ArrayList<>();
-        for (JCheckBox checkBox : checkBoxes) {
-            if (checkBox.isSelected()) {
-                selectedCriteria.add(checkBox.getText());
-            }
+
+
+
+
+    public static class GuideDetails {
+        private int guideId;
+        private String username;
+        private String name;
+        private String email;
+        private int noOfTours;
+        private double ratings;
+        private int noOfTourist;
+
+        public GuideDetails(int guideId, String username, String name, String email, int noOfTours, double ratings, int noOfTourist) {
+            this.guideId = guideId;
+            this.username = username;
+            this.name = name;
+            this.email = email;
+            this.noOfTours = noOfTours;
+            this.ratings = ratings;
+            this.noOfTourist = noOfTourist;
         }
-        return selectedCriteria;
+
+        
+        public String getGuideName() {
+        	return this.name;
+        }
+        public int getGuideId() {
+            return this.guideId;
+            
+        }
+
+        // Other getters and setters
     }
 
-    private String getSQLQuery(List<String> criteria, String sortOrder) {
-        StringBuilder sql = new StringBuilder("SELECT g.name, g.contact_info, g.age, g.address, g.email, d.no_of_tours, d.ratings, d.no_of_tourist FROM guide_info g JOIN guide_previous_detail d ON g.guide_id = d.guide_id WHERE ");
-        for (int i = 0; i < criteria.size(); i++) {
-            if (i > 0) {
-                sql.append(" AND ");
-            }
-            switch (criteria.get(i)) {
-                case "Number of Tours":
-                    sql.append("d.no_of_tours IS NOT NULL");
-                    break;
-                case "Ratings":
-                    sql.append("d.ratings IS NOT NULL");
-                    break;
-                case "Number of Tourists":
-                    sql.append("d.no_of_tourist IS NOT NULL");
-                    break;
-                case "Availability":
-                    sql.append("g.availability IS NOT NULL");
-                    break;
-            }
-        }
-        sql.append(" ORDER BY ");
-        switch (sortOrder) {
-            case "High to Low":
-                sql.append("d.ratings DESC");
-                break;
-            case "Low to High":
-                sql.append("d.ratings ASC");
-                break;
-        }
-        return sql.toString();
-    }
 }
