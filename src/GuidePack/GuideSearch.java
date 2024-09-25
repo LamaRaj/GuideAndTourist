@@ -89,7 +89,7 @@ public class GuideSearch extends JPanel {
             Class.forName("com.mysql.cj.jdbc.Driver");
             Connection con = DriverManager.getConnection("jdbc:mysql://localhost:3307/project", "root", "root");
 
-            // Build query with filters and sorting
+            // Build query with filters
             StringBuilder sql = new StringBuilder("SELECT g.guide_id, g.name, g.username, g.email, p.no_of_tours, p.ratings, p.no_of_tourist FROM guide_info g LEFT JOIN guide_previous_detail p ON g.guide_id = p.guide_id");
 
             List<String> filters = new ArrayList<>();
@@ -113,28 +113,18 @@ public class GuideSearch extends JPanel {
                 sql.append(" WHERE ").append(String.join(" OR ", filters));
             }
 
-            // Sorting
-            String sortOption = (String) sortComboBox.getSelectedItem();
-            if ("High to Low".equals(sortOption)) {
-                sql.append(" ORDER BY p.ratings DESC");
-            } else if ("Low to High".equals(sortOption)) {
-                sql.append(" ORDER BY p.ratings ASC");
-            } else {
-                sql.append(" ORDER BY g.name ASC"); // Default sorting
-            }
-
+            // Execute the query
             PreparedStatement stm = con.prepareStatement(sql.toString());
             ResultSet result = stm.executeQuery();
 
-            // Clear the existing panel
+            // Clear the existing panel and guide details list
             guidePanel.removeAll();
-
-            // Clear guide details list
             guideDetailsList.clear();
 
+            // Fetch guide details and store them in the guideDetailsList
             while (result.next()) {
                 int guideId = result.getInt("guide_id");
-                 String guideName = result.getString("name");
+                String guideName = result.getString("name");
                 String guideUsername = result.getString("username");
                 String guideEmail = result.getString("email");
                 int noOfTours = result.getInt("no_of_tours");
@@ -143,17 +133,22 @@ public class GuideSearch extends JPanel {
 
                 GuideDetails details = new GuideDetails(guideId, guideUsername, guideName, guideEmail, noOfTours, ratings, noOfTourist);
                 guideDetailsList.add(details);
+            }
 
-                // Create a panel for each guide detail
+            // Perform selection sort on guideDetailsList based on guide name
+            selectionSortGuidesByName();
+
+            // Display the sorted guides in the panel
+            for (GuideDetails details : guideDetailsList) {
                 JPanel detailPanel = new JPanel(new BorderLayout());
-                JLabel nameLabel = new JLabel("Name: " + guideName);
-                JLabel emailLabel = new JLabel("Email: " + guideEmail);
-                JLabel noOfToursLabel = new JLabel("Number of Tours: " + noOfTours);
-                JLabel ratingsLabel = new JLabel("Ratings: " + ratings);
-                JLabel noOfTouristLabel = new JLabel("Number of Tourists: " + noOfTourist);
+                JLabel nameLabel = new JLabel("Name: " + details.getGuideName());
+                JLabel emailLabel = new JLabel("Email: " + details.email);
+                JLabel noOfToursLabel = new JLabel("Number of Tours: " + details.noOfTours);
+                JLabel ratingsLabel = new JLabel("Ratings: " + details.ratings);
+                JLabel noOfTouristLabel = new JLabel("Number of Tourists: " + details.noOfTourist);
                 JButton bookButton = new JButton("Book");
 
-                // Add action listener for book button
+                // Add action listener for the book button
                 bookButton.addActionListener(new ActionListener() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
@@ -173,7 +168,7 @@ public class GuideSearch extends JPanel {
                 guidePanel.add(detailPanel);
             }
 
-            // Revalidate and repaint to update the UI
+            // Revalidate and repaint the panel to update the UI
             guidePanel.revalidate();
             guidePanel.repaint();
 
@@ -183,6 +178,24 @@ public class GuideSearch extends JPanel {
             JOptionPane.showMessageDialog(this, "Error fetching guides: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
+
+    private void selectionSortGuidesByName() {
+        for (int i = 0; i < guideDetailsList.size() - 1; i++) {
+            int minIndex = i;
+            for (int j = i + 1; j < guideDetailsList.size(); j++) {
+                if (guideDetailsList.get(j).getGuideName().compareToIgnoreCase(guideDetailsList.get(minIndex).getGuideName()) < 0) {
+                    minIndex = j;
+                }
+            }
+            // Swap the guides
+            if (minIndex != i) {
+                GuideDetails temp = guideDetailsList.get(i);
+                guideDetailsList.set(i, guideDetailsList.get(minIndex));
+                guideDetailsList.set(minIndex, temp);
+            }
+        }
+    }
+
     private void bookGuide(GuideDetails guideDetails) {
         // Retrieve the guide's name from the GuideDetails object
         String guideName = guideDetails.getGuideName(); // Ensure getGuideName() method exists in GuideDetails

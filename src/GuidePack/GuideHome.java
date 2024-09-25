@@ -34,7 +34,7 @@ public class GuideHome extends JFrame implements ActionListener {
     public GuideHome(int guideId) {
         this.guideId = guideId;
         setTitle("Guide Home");
-        setSize(600, 600);
+        setExtendedState(JFrame.MAXIMIZED_BOTH); // Make the window full-screen
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 

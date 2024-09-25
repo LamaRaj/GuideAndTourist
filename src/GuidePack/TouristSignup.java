@@ -69,6 +69,8 @@ public class TouristSignup extends JFrame implements ActionListener {
     public void actionPerformed(ActionEvent e) {
         String email = emailField.getText();
         String contact = contactField.getText();
+        String name = nameField.getText();
+        String username = usernameField.getText();
 
         if (!isValidEmail(email)) {
             statusLabel.setText("Invalid email format.");
@@ -78,6 +80,12 @@ public class TouristSignup extends JFrame implements ActionListener {
 
         if (!isValidContact(contact)) {
             statusLabel.setText("Invalid contact number.");
+            statusLabel.setForeground(Color.RED);
+            return;
+        }
+        
+        if (!isUsernameValid(username, name)) {
+            statusLabel.setText("Username must match the tourist's name.");
             statusLabel.setForeground(Color.RED);
             return;
         }
@@ -112,6 +120,12 @@ public class TouristSignup extends JFrame implements ActionListener {
         }
     }
 
+
+private boolean isUsernameValid(String username, String name) {
+    // Check if username is exactly the same as the name
+    return username.equalsIgnoreCase(name);
+}
+    
     private boolean isValidEmail(String email) {
         // Simple email validation regex
         String emailRegex = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$";

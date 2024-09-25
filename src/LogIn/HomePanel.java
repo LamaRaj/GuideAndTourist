@@ -1,54 +1,26 @@
 package LogIn;
 
-import java.awt.GridLayout;
-import java.awt.Color;
-import java.awt.Dimension;
-import javax.swing.BorderFactory;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.border.Border;
+import java.awt.*;
+import javax.swing.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
 public class HomePanel extends JPanel {
-    private JPanel guidePanel;
-    private JPanel userPanel;
-    private JPanel tourPanel;
-    private JLabel guideCountLabel;
-    private JLabel userCountLabel;
-    private JLabel tourCountLabel;
+    private int guideCount = 0;
+    private int userCount = 0;
+    private int tourCount = 0;
 
     public HomePanel() {
-        setLayout(new GridLayout(3, 1, 10, 10)); // 10 pixel gaps between rows
+        setLayout(new GridLayout(1, 1)); // A single layout for the chart
 
-        guidePanel = new JPanel();
-        userPanel = new JPanel();
-        tourPanel = new JPanel();
-
-        guideCountLabel = new JLabel("Number of Guides: ");
-        userCountLabel = new JLabel("Number of Users as Tourists: ");
-        tourCountLabel = new JLabel("Number of Tours Planned: ");
-
-        addPanelToHome(guidePanel, guideCountLabel, "Guides");
-        addPanelToHome(userPanel, userCountLabel, "Users");
-        addPanelToHome(tourPanel, tourCountLabel, "Tours");
-
+        // Load data from the database
         loadData();
-    }
 
-    private void addPanelToHome(JPanel panel, JLabel label, String title) {
-        panel.setLayout(new GridLayout(1, 1));
-        panel.setPreferredSize(new Dimension(200, 100));
-        panel.setBackground(Color.WHITE);
-
-        Border border = BorderFactory.createLineBorder(Color.GRAY, 1);
-        Border titledBorder = BorderFactory.createTitledBorder(border, title);
-        panel.setBorder(titledBorder);
-
-        panel.add(label);
-        add(panel);
+        // Create the pie chart panel and add it
+        PieChartPanel pieChartPanel = new PieChartPanel(guideCount, userCount, tourCount);
+        add(pieChartPanel);
     }
 
     private void loadData() {
@@ -64,26 +36,111 @@ public class HomePanel extends JPanel {
             PreparedStatement guideStmt = con.prepareStatement(guideCountQuery);
             ResultSet guideRs = guideStmt.executeQuery();
             if (guideRs.next()) {
-                guideCountLabel.setText("Number of Guides: " + guideRs.getInt(1));
+                guideCount = guideRs.getInt(1);
             }
 
             // Load user count
             PreparedStatement userStmt = con.prepareStatement(userCountQuery);
             ResultSet userRs = userStmt.executeQuery();
             if (userRs.next()) {
-                userCountLabel.setText("Number of Tourists: " + userRs.getInt(1));
+                userCount = userRs.getInt(1);
             }
 
             // Load tour count
             PreparedStatement tourStmt = con.prepareStatement(tourCountQuery);
             ResultSet tourRs = tourStmt.executeQuery();
             if (tourRs.next()) {
-                tourCountLabel.setText("Number of Tours Planned: " + tourRs.getInt(1));
+                tourCount = tourRs.getInt(1);
             }
 
             con.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    // Inner class to draw the pie chart
+    private class PieChartPanel extends JPanel {
+        private int guideCount;
+        private int userCount;
+        private int tourCount;
+
+        public PieChartPanel(int guideCount, int userCount, int tourCount) {
+            this.guideCount = guideCount;
+            this.userCount = userCount;
+            this.tourCount = tourCount;
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2d = (Graphics2D) g;
+            drawPieChart(g2d);
+        }
+
+        private void drawPieChart(Graphics2D g2d) {
+            int total = guideCount + userCount + tourCount;
+
+            // If there are no counts, don't draw the pie chart
+            if (total == 0) {
+                g2d.drawString("No data to display", getWidth() / 2 - 50, getHeight() / 2);
+                return;
+            }
+
+            // Calculate angles for each section of the pie chart
+            int guideAngle = (int) Math.round((guideCount * 360.0) / total);
+            int userAngle = (int) Math.round((userCount * 360.0) / total);
+            int tourAngle = 360 - (guideAngle + userAngle);  // Remaining angle for tours
+
+            // Draw the pie chart sections
+            int x = getWidth() / 4;
+            int y = getHeight() / 4;
+            int diameter = Math.min(getWidth() / 2, getHeight() / 2);
+
+            // Draw guides section
+            g2d.setColor(Color.RED);
+            g2d.fillArc(x, y, diameter, diameter, 0, guideAngle);
+
+            // Draw users section
+            g2d.setColor(Color.GREEN);
+            g2d.fillArc(x, y, diameter, diameter, guideAngle, userAngle);
+
+            // Draw tours section
+            g2d.setColor(Color.BLUE);
+            g2d.fillArc(x, y, diameter, diameter, guideAngle + userAngle, tourAngle);
+
+            // Add legend
+            drawLegend(g2d, x + diameter + 20, y);
+        }
+
+        private void drawLegend(Graphics2D g2d, int x, int y) {
+            int legendHeight = 20;
+
+            // Guides legend
+            g2d.setColor(Color.RED);
+            g2d.fillRect(x, y, 20, 20);
+            g2d.setColor(Color.BLACK);
+            g2d.drawString("Guides: " + guideCount, x + 30, y + 15);
+
+            // Users legend
+            g2d.setColor(Color.GREEN);
+            g2d.fillRect(x, y + legendHeight + 10, 20, 20);
+            g2d.setColor(Color.BLACK);
+            g2d.drawString("Tourists: " + userCount, x + 30, y + legendHeight + 25);
+
+            // Tours legend
+            g2d.setColor(Color.BLUE);
+            g2d.fillRect(x, y + 2 * (legendHeight + 10), 20, 20);
+            g2d.setColor(Color.BLACK);
+            g2d.drawString("Tours: " + tourCount, x + 30, y + 2 * (legendHeight + 25));
+        }
+    }
+
+    public static void main(String[] args) {
+        JFrame frame = new JFrame("Home Dashboard");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(800, 600);
+        frame.add(new HomePanel());
+        frame.setVisible(true);
     }
 }

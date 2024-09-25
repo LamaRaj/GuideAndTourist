@@ -138,6 +138,12 @@ public class GuideSignup extends JFrame implements ActionListener {
             return false;
         }
 
+        if (!username.matches(name)) {
+            JOptionPane.showMessageDialog(this, "username must be matched with name");
+            return false;
+        }
+
+        
         if (!contact.matches("^(98|97)\\d{8}$")) {
             JOptionPane.showMessageDialog(this, "Contact number must be a valid Nepal number (starting with 98 or 97 and followed by 8 digits).");
             return false;
